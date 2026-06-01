@@ -13,11 +13,14 @@ import {
   LearningNodeSchema,
 } from './schemas/learning-node.schema';
 
+import { Progress, ProgressSchema } from './schemas/progress.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: LearningPath.name, schema: LearningPathSchema },
       { name: LearningNode.name, schema: LearningNodeSchema },
+      { name: Progress.name, schema: ProgressSchema },
     ]),
   ],
   controllers: [LearningPathController],
