@@ -134,6 +134,7 @@ export class MatchmakingService {
       content: q.content,
       difficulty: q.difficulty,
       testCases: q.testCases ?? [],
+      correctAnswer: q.correctAnswer,
     }));
   }
 }

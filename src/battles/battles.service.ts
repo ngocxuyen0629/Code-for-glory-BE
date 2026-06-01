@@ -28,6 +28,8 @@ import { MatchmakingService } from './matchmaking/matchmaking.service';
 import { BadRequestException } from '@nestjs/common';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 
+import { BattlesGateway } from './battles.gateway';
+
 @Injectable()
 export class BattlesService {
   constructor(
@@ -38,6 +40,7 @@ export class BattlesService {
     @InjectModel(UserRanking.name)
     private readonly rankingModel: Model<UserRankingDocument>,
     private readonly matchmakingService: MatchmakingService,
+    private readonly gateway: BattlesGateway,
   ) {}
 
   async createBattle(
@@ -175,6 +178,19 @@ export class BattlesService {
       }),
     ]);
 
+    if (isCorrect) {
+      // Tìm index câu hỏi này trong battle để truyền questionOrder
+      const questionOrder = battle.questions.findIndex(
+        (q) => q.questionId.toString() === dto.questionId,
+      );
+
+      this.gateway.notifyCorrectSubmit(battleId, {
+        userId,
+        questionId: dto.questionId,
+        questionOrder,
+      });
+    }
+
     const correctCount = await this.submissionModel.countDocuments({
       battleId: new Types.ObjectId(battleId),
       userId: new Types.ObjectId(userId),
@@ -182,20 +198,7 @@ export class BattlesService {
     });
 
     if (correctCount >= battle.questions.length) {
-      await this.battleModel.findByIdAndUpdate(battleId, {
-        $set: { [`players.${playerIndex}.hasSubmitted`]: true },
-      });
-
-      const updatedBattle = await this.battleModel.findByIdAndUpdate(
-        battleId,
-        { $set: { [`players.${playerIndex}.hasSubmitted`]: true } },
-        { new: true }, // ← trả về document SAU khi update
-      );
-      const allDone = updatedBattle?.players.every((p) => p.hasSubmitted);
-
-      if (allDone) {
-        await this.endBattle(battleId);
-      }
+      await this.endBattle(battleId);
     }
     return {
       isCorrect,
@@ -242,7 +245,7 @@ export class BattlesService {
       },
     });
 
-    return {
+    const endResult = {
       battleId,
       isDraw,
       winner: winner
@@ -253,6 +256,14 @@ export class BattlesService {
         : null,
       finalScores,
     };
+
+    this.gateway.notifyBattleEnded(battleId, {
+      winnerId: winner?.userId.toString(),
+      isDraw,
+      finalScores,
+    });
+
+    return endResult;
   }
   async getSubmissions(battleId: string, userId?: string) {
     if (!Types.ObjectId.isValid(battleId)) {

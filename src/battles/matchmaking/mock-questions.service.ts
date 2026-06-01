@@ -13,6 +13,7 @@ export class MockQuestionsService implements IQuestionService {
       field: Field.FE,
       difficulty: 'easy',
       testCases: [],
+      correctAnswer: 'closure',
     },
     {
       _id: new Types.ObjectId('507f1f77bcf86cd799439022'),
@@ -21,6 +22,7 @@ export class MockQuestionsService implements IQuestionService {
       field: Field.FE,
       difficulty: 'medium',
       testCases: [],
+      correctAnswer: 'dependency',
     },
     {
       _id: new Types.ObjectId('507f1f77bcf86cd799439023'),
@@ -29,6 +31,7 @@ export class MockQuestionsService implements IQuestionService {
       field: Field.BE,
       difficulty: 'hard',
       testCases: [],
+      correctAnswer: 'token bucket',
     },
     {
       _id: new Types.ObjectId('507f1f77bcf86cd799439024'),
@@ -37,6 +40,7 @@ export class MockQuestionsService implements IQuestionService {
       field: Field.BE,
       difficulty: 'easy',
       testCases: [],
+      correctAnswer: 'event loop',
     },
   ];
   async findRandomByCriteria(

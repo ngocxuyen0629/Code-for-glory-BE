@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { BattlesController } from './battles.controller';
 import { BattlesService } from './battles.service';
+import { BattlesGateway } from './battles.gateway';
 
 import { Battle, BattleSchema } from './schemas/battle.schema';
 import {
@@ -23,7 +24,12 @@ import { MockQuestionsService } from './matchmaking/mock-questions.service';
     ]),
   ],
   controllers: [BattlesController],
-  providers: [BattlesService, MatchmakingService, MockQuestionsService],
+  providers: [
+    BattlesService,
+    BattlesGateway,
+    MatchmakingService,
+    MockQuestionsService,
+  ],
   exports: [BattlesService],
 })
 export class BattlesModule {}
