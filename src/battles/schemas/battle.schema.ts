@@ -20,7 +20,7 @@ export class BattlePlayer {
   currentScore!: number;
 
   @Prop({ default: false })
-  hasSumited!: boolean;
+  hasSubmitted!: boolean;
 
   @Prop()
   joinedAt!: Date;
@@ -42,6 +42,9 @@ export class BattleQuesion {
 
   @Prop({ type: Array, default: [] })
   testCases!: any[];
+
+  @Prop()
+  correctAnswer?: string;
 }
 
 @Schema({ timestamps: true })

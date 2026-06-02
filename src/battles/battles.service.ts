@@ -21,11 +21,18 @@ import { CreateBattleDto } from './dto/create-battle.dto';
 import { GetHistoryDto } from './dto/get-history.dto';
 import { GetLeaderboardDto } from './dto/get-leaderboard.dto';
 
-import { BattleMode } from './enums/battle-mode.enum';
 import { BattleStatus } from './enums/battle-status.enum';
+
+import { MatchmakingService } from './matchmaking/matchmaking.service';
+
+import { BadRequestException } from '@nestjs/common';
+import { SubmitAnswerDto } from './dto/submit-answer.dto';
+
+import { BattlesGateway } from './battles.gateway';
 
 @Injectable()
 export class BattlesService {
+  private readonly battleTimers = new Map<string, NodeJS.Timeout>();
   constructor(
     @InjectModel(Battle.name)
     private readonly battleModel: Model<BattleDocument>,
@@ -33,54 +40,25 @@ export class BattlesService {
     private readonly submissionModel: Model<BattleSubmissionsDocument>,
     @InjectModel(UserRanking.name)
     private readonly rankingModel: Model<UserRankingDocument>,
+    private readonly matchmakingService: MatchmakingService,
+    private readonly gateway: BattlesGateway,
   ) {}
-
-  // async createBattle(userId: string, dto: CreateBattleDto) {
-  //   const timeLimit = dto.mode == BattleMode.SPEED ? 600 : 1800;
-
-  //   const battle = await this.battleModel.create({
-  //     mode: dto.mode,
-  //     field: dto.field,
-  //     status: BattleStatus.WAITING,
-  //     players: [
-  //       {
-  //         userId: new Types.ObjectId(userId),
-  //         score: 0,
-  //         isReady: false,
-  //       },
-  //     ],
-  //     questions: [],
-  //     timeLimit,
-  //     startTime: new Date(),
-  //   });
-
-  //   return Battle;
-  // }
 
   async createBattle(
     user: { userId: string; username: string; avatar?: string },
     dto: CreateBattleDto,
   ) {
-    const timeLimit = dto.mode === BattleMode.SPEED ? 600 : 1800;
-
-    const battle = await this.battleModel.create({
+    const battle = await this.matchmakingService.findOrCreate({
+      userId: user.userId,
+      username: user.username,
+      avatar: user.avatar,
       mode: dto.mode,
       field: dto.field,
-      status: BattleStatus.WAITING,
-      players: [
-        {
-          userId: new Types.ObjectId(user.userId),
-          username: user.username,
-          avatar: user.avatar,
-          currentScore: 0,
-          hasSubmitted: false,
-          joinedAt: new Date(),
-        },
-      ],
-      questions: [],
-      timeLimit,
     });
 
+    if (battle.status === BattleStatus.IN_PROGRESS) {
+      this.startBattleTimer(String(battle._id), battle.timeLimit);
+    }
     return battle;
   }
   async getBattleById(battleId: string, userId: string) {
@@ -137,5 +115,278 @@ export class BattlesService {
       .limit(limit)
       .lean();
     return rankings;
+  }
+
+  async submitAnswer(battleId: string, userId: string, dto: SubmitAnswerDto) {
+    if (!Types.ObjectId.isValid(battleId)) {
+      throw new NotFoundException('Battle not found');
+    }
+
+    const battle = await this.battleModel.findById(battleId);
+    if (!battle) {
+      throw new NotFoundException('Battle not found');
+    }
+
+    if (battle.status !== BattleStatus.IN_PROGRESS) {
+      throw new BadRequestException('Battle is not in progress');
+    }
+
+    const playerIndex = battle.players.findIndex(
+      (p) => p.userId.toString() === userId,
+    );
+    if (playerIndex == -1) {
+      throw new ForbiddenException('You are not a player of this battle');
+    }
+
+    const question = battle.questions.find(
+      (p) => p.questionId.toString() == dto.questionId,
+    );
+    if (!question) {
+      throw new BadRequestException('Question not found in this battle');
+    }
+
+    const existingSubmission = await this.submissionModel.findOne({
+      battleId: new Types.ObjectId(battleId),
+      userId: new Types.ObjectId(userId),
+      questionId: new Types.ObjectId(dto.questionId),
+      isCorrect: true,
+    });
+
+    if (existingSubmission) {
+      throw new BadRequestException(
+        'You already answered this question correctly',
+      );
+    }
+
+    const isCorrect =
+      dto.answer.trim() === (question.correctAnswer ?? '').trim();
+
+    const player = battle.players[playerIndex];
+    const newScore = isCorrect
+      ? player.currentScore + 10
+      : Math.max(0, player.currentScore - 3);
+    const pointsChange = newScore - player.currentScore;
+
+    await Promise.all([
+      this.submissionModel.create({
+        battleId: new Types.ObjectId(battleId),
+        userId: new Types.ObjectId(userId),
+        questionId: new Types.ObjectId(dto.questionId),
+        answer: dto.answer,
+        isCorrect,
+        points: pointsChange,
+        timeSpent: 0,
+      }),
+      this.battleModel.findByIdAndUpdate(battleId, {
+        $set: {
+          [`players.${playerIndex}.currentScore`]: newScore,
+        },
+      }),
+    ]);
+
+    if (isCorrect) {
+      const questionOrder = battle.questions.findIndex(
+        (q) => q.questionId.toString() === dto.questionId,
+      );
+
+      this.gateway.notifyCorrectSubmit(battleId, {
+        userId,
+        questionId: dto.questionId,
+        questionOrder,
+      });
+    }
+
+    const correctCount = await this.submissionModel.countDocuments({
+      battleId: new Types.ObjectId(battleId),
+      userId: new Types.ObjectId(userId),
+      isCorrect: true,
+    });
+
+    if (correctCount >= battle.questions.length) {
+      await this.endBattle(battleId);
+    }
+    return {
+      isCorrect,
+      points: pointsChange,
+      currentScore: newScore,
+      currentQuestionIndex: correctCount,
+      message: isCorrect ? 'Correct' : 'Wrong answer, -3 points',
+    };
+  }
+
+  async endBattle(battleId: string) {
+    const battle = await this.battleModel.findById(battleId);
+    if (!battle) {
+      throw new NotFoundException('Battle not found');
+    }
+    if (battle.status !== BattleStatus.IN_PROGRESS) {
+      throw new BadRequestException('Battle is not in progress');
+    }
+
+    const [p1, p2] = battle.players;
+    const isDraw = p1.currentScore === p2.currentScore;
+    const winner = isDraw ? null : p1.currentScore > p2.currentScore ? p1 : p2;
+    const loser = isDraw
+      ? null
+      : winner?.userId.toString() === p1.userId.toString()
+        ? p2
+        : p1;
+
+    const finalScores = battle.players.map((p) => ({
+      userId: p.userId.toString(),
+      username: p.username,
+      score: p.currentScore,
+    }));
+
+    await this.battleModel.findByIdAndUpdate(battleId, {
+      $set: {
+        status: BattleStatus.COMPLETED,
+        endTime: new Date(),
+        result: {
+          winnerId: winner?.userId ?? null,
+          isDraw,
+          finalScores,
+        },
+      },
+    });
+
+    const endResult = {
+      battleId,
+      isDraw,
+      winner: winner
+        ? { userId: winner.userId.toString(), username: winner.username }
+        : null,
+      loser: loser
+        ? { userId: loser.userId.toString(), username: loser.username }
+        : null,
+      finalScores,
+    };
+
+    await this.updateRankings(battle, winner?.userId ?? null, isDraw);
+
+    this.stopBattleTimer(battleId);
+    this.gateway.notifyBattleEnded(battleId, {
+      winnerId: winner?.userId.toString(),
+      isDraw,
+      finalScores,
+    });
+    return endResult;
+  }
+  async getSubmissions(battleId: string, userId?: string) {
+    if (!Types.ObjectId.isValid(battleId)) {
+      throw new NotFoundException('Battle not foun');
+    }
+    const filter: Record<string, unknown> = {
+      battleId: new Types.ObjectId(battleId),
+    };
+    if (userId && Types.ObjectId.isValid(userId)) {
+      filter.userId = new Types.ObjectId(userId);
+    }
+
+    return this.submissionModel.find(filter).sort({ submittedAt: 1 }).lean();
+  }
+
+  startBattleTimer(battleId: string, timeLimit: number) {
+    if (this.battleTimers.has(battleId)) return;
+
+    let timeRemaining = timeLimit;
+
+    const interval = setInterval(() => {
+      timeRemaining--;
+      this.gateway.pushTimerTick(battleId, timeRemaining);
+
+      if (timeRemaining <= 0) {
+        this.stopBattleTimer(battleId);
+        this.endBattle(battleId).catch(() => {});
+      }
+    }, 1000);
+    this.battleTimers.set(battleId, interval);
+  }
+  stopBattleTimer(battleId: string) {
+    const interval = this.battleTimers.get(battleId);
+    if (interval) {
+      clearInterval(interval);
+      this.battleTimers.delete(battleId);
+    }
+  }
+  async abandonBattle(battleId: string, userId: string) {
+    if (!Types.ObjectId.isValid(battleId))
+      throw new NotFoundException('Battle not found');
+
+    const battle = await this.battleModel.findById(battleId);
+    if (!battle) throw new NotFoundException('Battle not found');
+    if (
+      battle.status !== BattleStatus.IN_PROGRESS &&
+      battle.status !== BattleStatus.COMPLETED
+    ) {
+      throw new BadRequestException('Battle already ended');
+    }
+
+    const opponent = battle.players.find((p) => p.userId.toString() !== userId);
+
+    const finalScores = battle.players.map((p) => ({
+      userId: p.userId.toString(),
+      userName: p.username,
+      score: p.currentScore,
+    }));
+
+    await this.battleModel.findByIdAndUpdate(battleId, {
+      $set: {
+        status: BattleStatus.ABANDONED,
+        endTime: new Date(),
+        result: {
+          winnerId: opponent?.userId ?? null,
+          isDraw: false,
+          finalScores,
+        },
+      },
+    });
+
+    await this.updateRankings(battle, opponent?.userId ?? null, false);
+
+    this.stopBattleTimer(battleId);
+
+    this.gateway.notifyBattleEnded(battleId, {
+      winnerId: opponent?.userId.toString(),
+      isDraw: false,
+      finalScores,
+    });
+    return {
+      message: 'Battle abandoned',
+      winnerId: opponent?.userId.toString(),
+    };
+  }
+
+  private async updateRankings(
+    battle: BattleDocument,
+    winnerId: Types.ObjectId | null,
+    isDraw: boolean,
+  ) {
+    const updates = battle.players.map(async (p) => {
+      const isWinner = !isDraw && winnerId?.toString() === p.userId.toString();
+      const isLoser = !isDraw && !isWinner;
+
+      const updated = await this.rankingModel
+        .findOneAndUpdate(
+          { userId: p.userId, field: battle.field },
+          {
+            $inc: {
+              totalBattles: 1,
+              wins: isWinner ? 1 : 0,
+              losses: isLoser ? 1 : 0,
+              draws: isDraw ? 1 : 0,
+            },
+          },
+          { upsert: true, new: true },
+        )
+        .lean();
+      const winRate =
+        updated.totalBattles > 0 ? updated.wins / updated.totalBattles : 0;
+
+      await this.rankingModel.findByIdAndUpdate(updated._id, {
+        $set: { winRate },
+      });
+    });
+    await Promise.all(updates);
   }
 }
