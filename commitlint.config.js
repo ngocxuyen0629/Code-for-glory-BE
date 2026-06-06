@@ -5,7 +5,7 @@ export default {
       2,
       'always',
       [
-          'feat', // Tính năng mới
+        'feat', // Tính năng mới
         'fix', // Bug fix
         'docs', // Thay đổi documentation
         'style', // Định dạng code

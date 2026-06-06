@@ -2,7 +2,7 @@
 
 ## Git Workflow
 
-###  Branch Strategy
+### Branch Strategy
 
 ```bash
 main        ← Production (protected)
@@ -16,7 +16,7 @@ hotfix/*    ← Urgent fixes
 
 ---
 
-##  Quy trình làm việc
+## Quy trình làm việc
 
 ### 1. Clone repo (lần đầu)
 
@@ -55,8 +55,8 @@ git push origin feature/ten-tinh-nang
 
 ### 6. Tạo Pull Request trên GitHub
 
-* Base: `develop`
-* Compare: `feature/ten-tinh-nang`
+- Base: `develop`
+- Compare: `feature/ten-tinh-nang`
 
 ### 7. Sau khi merge
 
@@ -68,7 +68,7 @@ git branch -d feature/ten-tinh-nang
 
 ---
 
-##  Commit Message Convention
+## Commit Message Convention
 
 **Format:**
 
@@ -95,15 +95,15 @@ docs: update README
 
 ---
 
-##  Code Review
+## Code Review
 
-* Mỗi PR cần **ít nhất 1 approval**
-* CI phải pass (lint, test, typecheck)
-* Resolve tất cả comments trước khi merge
+- Mỗi PR cần **ít nhất 1 approval**
+- CI phải pass (lint, test, typecheck)
+- Resolve tất cả comments trước khi merge
 
 ---
 
-##  Getting Started
+## Getting Started
 
 ### Cài dependencies
 
@@ -117,11 +117,11 @@ yarn install
 yarn start:dev
 ```
 
- API chạy tại: http://localhost:3000
+API chạy tại: http://localhost:3000
 
 ---
 
-##  Project Structure
+## Project Structure
 
 ```bash
 backend/
@@ -146,13 +146,13 @@ backend/
 
 ---
 
-##  Code Style
+## Code Style
 
-* Sử dụng **TypeScript strict mode**
-* Follow **ESLint + Prettier**
-* Dùng **feature-based structure** (`src/users`)
+- Sử dụng **TypeScript strict mode**
+- Follow **ESLint + Prettier**
+- Dùng **feature-based structure** (`src/users`)
 
-###  Không push
+### Không push
 
-* `node_modules`
-* `dist`
+- `node_modules`
+- `dist`
