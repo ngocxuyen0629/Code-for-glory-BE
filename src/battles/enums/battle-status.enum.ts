@@ -1,6 +1,0 @@
-export enum BattleStatus {
-  WAITING = 'WAITING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  ABANDONED = 'ABANDONED',
-}

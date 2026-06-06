@@ -1,11 +1,11 @@
 import { Types } from 'mongoose';
-import { Field } from '../enums/field.enum';
+import { CareerField } from '../../common/enums';
 
 export interface IQuestion {
   _id: Types.ObjectId | string;
   title: string;
   content: string;
-  field: Field;
+  field: CareerField;
   difficulty: 'easy' | 'medium' | 'hard';
   testCases?: any[];
   correctAnswer?: string;
@@ -13,7 +13,7 @@ export interface IQuestion {
 
 export interface IQuestionService {
   findRandomByCriteria(
-    field: Field,
+    field: CareerField,
     difficulty: string,
     count: number,
   ): Promise<IQuestion[]>;

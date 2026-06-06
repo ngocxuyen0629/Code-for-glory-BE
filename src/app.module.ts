@@ -1,10 +1,21 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { BattlesModule } from './battles/battles.module';
 import { LearningPathModule } from './learning-path/learning-path.module';
+import { BattlesModule } from './battles/battles.module';
+import { RecallModule } from './recall/recall.module';
+import { AIMentorModule } from './ai-mentor/ai-mentor.module';
+import { PenaltiesModule } from './penalties/penalty.module';
+import { ExercisesModule } from './exercises/exercises.module';
+import { ErrorTrackingModule } from './error-tracking/error-tracking.module';
+import { HistoryModule } from './history/history.module';
+import { NotificationsModule } from './notifications/notification.module';
+import { SurveyModule } from './survey/survey.module';
+import { AdminModule } from './admin/admin.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -13,15 +24,30 @@ import { LearningPathModule } from './learning-path/learning-path.module';
     }),
 
     MongooseModule.forRootAsync({
-      useFactory: () => ({
-        uri: process.env.MONGO_URI,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.getOrThrow<string>('MONGODB_URI'),
       }),
     }),
 
+    CommonModule,
+
     AuthModule,
     UsersModule,
-    BattlesModule,
+
     LearningPathModule,
+    ExercisesModule,
+    BattlesModule,
+    RecallModule,
+
+    AIMentorModule,
+    PenaltiesModule,
+
+    ErrorTrackingModule,
+    HistoryModule,
+    NotificationsModule,
+    SurveyModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

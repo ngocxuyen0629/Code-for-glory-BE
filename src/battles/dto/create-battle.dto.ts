@@ -1,6 +1,6 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { BattleMode } from '../enums/battle-mode.enum';
-import { Field } from '../enums/field.enum';
+import { BattleMode } from '../../common/enums';
+import { CareerField } from '../../common/enums/';
 
 export class CreateBattleDto {
   @IsNotEmpty()
@@ -10,10 +10,10 @@ export class CreateBattleDto {
   mode!: BattleMode;
 
   @IsNotEmpty()
-  @IsEnum(Field, {
+  @IsEnum(CareerField, {
     message: 'field must be FE or BE',
   })
-  field!: Field;
+  field!: CareerField;
 
   @IsOptional()
   @IsString()

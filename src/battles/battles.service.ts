@@ -11,19 +11,20 @@ import { Battle, BattleDocument } from './schemas/battle.schema';
 import {
   UserRanking,
   UserRankingDocument,
-} from './schemas/user-ranking.schema';
+} from '../users/schemas/user-ranking.schema';
 import {
   BattleSubmission,
-  BattleSubmissionsDocument,
+  BattleSubmissionDocument,
 } from './schemas/battle-submission.schema';
 
 import { CreateBattleDto } from './dto/create-battle.dto';
 import { GetHistoryDto } from './dto/get-history.dto';
 import { GetLeaderboardDto } from './dto/get-leaderboard.dto';
 
-import { BattleStatus } from './enums/battle-status.enum';
+import { BattleStatus, SubmissionStatus } from '../common/enums';
 
 import { MatchmakingService } from './matchmaking/matchmaking.service';
+import { MockQuestionsService } from './matchmaking/mock-questions.service';
 
 import { BadRequestException } from '@nestjs/common';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
@@ -37,10 +38,11 @@ export class BattlesService {
     @InjectModel(Battle.name)
     private readonly battleModel: Model<BattleDocument>,
     @InjectModel(BattleSubmission.name)
-    private readonly submissionModel: Model<BattleSubmissionsDocument>,
+    private readonly submissionModel: Model<BattleSubmissionDocument>,
     @InjectModel(UserRanking.name)
     private readonly rankingModel: Model<UserRankingDocument>,
     private readonly matchmakingService: MatchmakingService,
+    private readonly questionsService: MockQuestionsService,
     private readonly gateway: BattlesGateway,
   ) {}
 
@@ -57,7 +59,7 @@ export class BattlesService {
     });
 
     if (battle.status === BattleStatus.IN_PROGRESS) {
-      this.startBattleTimer(String(battle._id), battle.timeLimit);
+      this.startBattleTimer(String(battle._id), battle.timeLimitSeconds);
     }
     return battle;
   }
@@ -84,12 +86,12 @@ export class BattlesService {
 
     const filter = {
       'players.userId': new Types.ObjectId(userId),
-      status: { $in: [BattleStatus.COMPLETED, BattleStatus.ABANDONED] },
+      status: { $in: [BattleStatus.FINISHED, BattleStatus.CANCELLED] },
     };
     const [items, total] = await Promise.all([
       this.battleModel
         .find(filter)
-        .sort({ endTime: -1, createAt: -1 })
+        .sort({ endTime: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -138,18 +140,23 @@ export class BattlesService {
       throw new ForbiddenException('You are not a player of this battle');
     }
 
-    const question = battle.questions.find(
-      (p) => p.questionId.toString() == dto.questionId,
+    const isQuestionInBattle = battle.questionIds.some(
+      (q) => q.toString() == dto.questionId,
     );
-    if (!question) {
+    if (!isQuestionInBattle) {
       throw new BadRequestException('Question not found in this battle');
+    }
+
+    const question = await this.questionsService.findById(dto.questionId);
+    if (!question) {
+      throw new BadRequestException('Question not found');
     }
 
     const existingSubmission = await this.submissionModel.findOne({
       battleId: new Types.ObjectId(battleId),
       userId: new Types.ObjectId(userId),
       questionId: new Types.ObjectId(dto.questionId),
-      isCorrect: true,
+      status: SubmissionStatus.ACCEPTED,
     });
 
     if (existingSubmission) {
@@ -163,30 +170,38 @@ export class BattlesService {
 
     const player = battle.players[playerIndex];
     const newScore = isCorrect
-      ? player.currentScore + 10
-      : Math.max(0, player.currentScore - 3);
-    const pointsChange = newScore - player.currentScore;
+      ? player.score + 10
+      : Math.max(0, player.score - 3);
+    const pointsChange = newScore - player.score;
 
     await Promise.all([
       this.submissionModel.create({
         battleId: new Types.ObjectId(battleId),
         userId: new Types.ObjectId(userId),
         questionId: new Types.ObjectId(dto.questionId),
-        answer: dto.answer,
-        isCorrect,
-        points: pointsChange,
-        timeSpent: 0,
+        language: 'text',
+        code: dto.answer,
+        status: isCorrect
+          ? SubmissionStatus.ACCEPTED
+          : SubmissionStatus.WRONG_ANSWER,
+        pointsEarned: pointsChange,
+        elapsedSeconds: battle.startTime
+          ? Math.floor((Date.now() - battle.startTime.getTime()) / 1000)
+          : 0,
       }),
       this.battleModel.findByIdAndUpdate(battleId, {
         $set: {
-          [`players.${playerIndex}.currentScore`]: newScore,
+          [`players.${playerIndex}.score`]: newScore,
+        },
+        $inc: {
+          [`players.${playerIndex}.submissionCount`]: 1,
         },
       }),
     ]);
 
     if (isCorrect) {
-      const questionOrder = battle.questions.findIndex(
-        (q) => q.questionId.toString() === dto.questionId,
+      const questionOrder = battle.questionIds.findIndex(
+        (q) => q.toString() === dto.questionId,
       );
 
       this.gateway.notifyCorrectSubmit(battleId, {
@@ -199,10 +214,10 @@ export class BattlesService {
     const correctCount = await this.submissionModel.countDocuments({
       battleId: new Types.ObjectId(battleId),
       userId: new Types.ObjectId(userId),
-      isCorrect: true,
+      status: SubmissionStatus.ACCEPTED,
     });
 
-    if (correctCount >= battle.questions.length) {
+    if (correctCount >= battle.questionIds.length) {
       await this.endBattle(battleId);
     }
     return {
@@ -224,8 +239,8 @@ export class BattlesService {
     }
 
     const [p1, p2] = battle.players;
-    const isDraw = p1.currentScore === p2.currentScore;
-    const winner = isDraw ? null : p1.currentScore > p2.currentScore ? p1 : p2;
+    const isDraw = p1.score === p2.score;
+    const winner = isDraw ? null : p1.score > p2.score ? p1 : p2;
     const loser = isDraw
       ? null
       : winner?.userId.toString() === p1.userId.toString()
@@ -234,31 +249,23 @@ export class BattlesService {
 
     const finalScores = battle.players.map((p) => ({
       userId: p.userId.toString(),
-      username: p.username,
-      score: p.currentScore,
+      score: p.score,
     }));
 
     await this.battleModel.findByIdAndUpdate(battleId, {
       $set: {
-        status: BattleStatus.COMPLETED,
+        status: BattleStatus.FINISHED,
         endTime: new Date(),
-        result: {
-          winnerId: winner?.userId ?? null,
-          isDraw,
-          finalScores,
-        },
+        winnerId: winner?.userId ?? null,
+        isDraw,
       },
     });
 
     const endResult = {
       battleId,
       isDraw,
-      winner: winner
-        ? { userId: winner.userId.toString(), username: winner.username }
-        : null,
-      loser: loser
-        ? { userId: loser.userId.toString(), username: loser.username }
-        : null,
+      winner: winner ? { userId: winner.userId.toString() } : null,
+      loser: loser ? { userId: loser.userId.toString() } : null,
       finalScores,
     };
 
@@ -283,7 +290,7 @@ export class BattlesService {
       filter.userId = new Types.ObjectId(userId);
     }
 
-    return this.submissionModel.find(filter).sort({ submittedAt: 1 }).lean();
+    return this.submissionModel.find(filter).sort({ createdAt: 1 }).lean();
   }
 
   startBattleTimer(battleId: string, timeLimit: number) {
@@ -317,7 +324,7 @@ export class BattlesService {
     if (!battle) throw new NotFoundException('Battle not found');
     if (
       battle.status !== BattleStatus.IN_PROGRESS &&
-      battle.status !== BattleStatus.COMPLETED
+      battle.status !== BattleStatus.WAITING
     ) {
       throw new BadRequestException('Battle already ended');
     }
@@ -326,19 +333,15 @@ export class BattlesService {
 
     const finalScores = battle.players.map((p) => ({
       userId: p.userId.toString(),
-      userName: p.username,
-      score: p.currentScore,
+      score: p.score,
     }));
 
     await this.battleModel.findByIdAndUpdate(battleId, {
       $set: {
-        status: BattleStatus.ABANDONED,
+        status: BattleStatus.CANCELLED,
         endTime: new Date(),
-        result: {
-          winnerId: opponent?.userId ?? null,
-          isDraw: false,
-          finalScores,
-        },
+        winnerId: opponent?.userId ?? null,
+        isDraw: false,
       },
     });
 
