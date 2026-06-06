@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -43,10 +43,10 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user: {
         _id: String(user._id),
-        name: user.name ?? '',
+        name: user.username ?? '',
         role: user.role ?? '',
-        is_first_login: user.is_first_login ?? false,
-        level: user.level ?? '',
+        is_first_login: user.isFirstLogin ?? false,
+        level: user.gamification?.level ?? 1,
       },
     };
   }

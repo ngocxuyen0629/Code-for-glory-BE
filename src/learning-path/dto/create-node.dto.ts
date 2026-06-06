@@ -3,43 +3,51 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsInt,
+  IsNumber,
   IsMongoId,
   IsArray,
-  IsNumber,
-  Min,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { NodeType } from '../enums/node-type.enum';
+import { NodeType, QuestionDifficulty } from '../../common/enums';
 
-export class QuizDto {
-  @IsNotEmpty() @IsString() question!: string;
-
-  @IsArray() @IsString({ each: true }) options!: string[];
-
-  @IsNumber() @Min(0) answerIndex!: number;
-}
 export class CreateNodeDto {
-  @IsNotEmpty() @IsEnum(NodeType) type!: NodeType;
+  @IsNotEmpty()
+  @IsEnum(NodeType)
+  type!: NodeType;
 
-  @IsNotEmpty() @IsString() title!: string;
+  @IsNotEmpty()
+  @IsString()
+  title!: string;
 
-  @IsOptional() @IsMongoId() parentId?: string;
+  @IsOptional()
+  @IsString()
+  description?: string;
 
-  @IsOptional() @IsInt() order?: number;
+  @IsOptional()
+  @IsNumber()
+  order?: number;
 
-  @IsOptional() @IsString() theory?: string;
+  @IsOptional()
+  @IsNumber()
+  milestoneOrder?: number;
+
+  @IsOptional()
+  @IsEnum(QuestionDifficulty)
+  difficulty?: QuestionDifficulty;
+
+  @IsOptional()
+  @IsString()
+  theory?: string;
+
+  @IsOptional()
+  @IsString()
+  videoUrl?: string;
 
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuizDto)
-  quizzes?: QuizDto[];
+  @IsMongoId({ each: true })
+  questionIds?: string[];
 
-  @IsOptional() @IsString() problemStatement?: string;
-
-  @IsOptional() @IsString() starterCode?: string;
-
-  @IsOptional() @IsString() expectedOutput?: string;
+  @IsOptional()
+  @IsMongoId()
+  labExerciseId?: string;
 }

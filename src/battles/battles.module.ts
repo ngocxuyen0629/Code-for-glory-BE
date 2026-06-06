@@ -10,7 +10,10 @@ import {
   BattleSubmission,
   BattleSubmissionSchema,
 } from './schemas/battle-submission.schema';
-import { UserRanking, UserRankingSchema } from './schemas/user-ranking.schema';
+import {
+  UserRanking,
+  UserRankingSchema,
+} from '../users/schemas/user-ranking.schema';
 
 import { MatchmakingService } from './matchmaking/matchmaking.service';
 import { MockQuestionsService } from './matchmaking/mock-questions.service';

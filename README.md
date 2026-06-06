@@ -1,98 +1,140 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Code-For-Glory — Database Schemas (NestJS + MongoDB)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Tất cả Mongoose schema cho 13 module của hệ thống Code-For-Glory, dựng theo
+Milestone 2 doc (survey, user-flow, schema diagram trên SwaggerHub).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Cấu trúc thư mục
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ yarn install
+```
+src/
+├── common/enums/index.ts          # Enum dùng chung cho mọi module
+├── users/schemas/
+│   ├── user.schema.ts             # Tài khoản + profile + gamification
+│   ├── login-attempt.schema.ts    # Log đăng nhập (exponential backoff)
+│   └── user-ranking.schema.ts     # ELO/rating theo từng career field
+├── auth/schemas/
+│   ├── refresh-token.schema.ts    # JWT refresh token rotation
+│   └── otp.schema.ts              # OTP cho password reset
+├── learning-path/schemas/
+│   ├── roadmap.schema.ts          # Roadmap FE/BE/Fullstack
+│   ├── roadmap-node.schema.ts     # Từng node (lesson/lab/quiz) trên cây
+│   └── user-progress.schema.ts    # Trạng thái mỗi node theo user
+├── exercises/schemas/
+│   ├── question.schema.ts         # Câu hỏi (quiz/coding/lab)
+│   ├── exercise.schema.ts         # Lab/Mini-Project
+│   └── submission.schema.ts       # Bản ghi mỗi lần submit code
+├── battles/schemas/
+│   ├── battle.schema.ts           # Trận 1v1 (Performance/Speed)
+│   ├── battle-submission.schema.ts# Submit trong trận battle
+│   └── code-analysis.schema.ts    # AI Mentor's post-battle review
+├── ai-mentor/schemas/
+│   ├── ai-chat-session.schema.ts  # 1 session = 1 hội thoại
+│   └── ai-chat-message.schema.ts  # Từng message (matches doc schema)
+├── error-tracking/schemas/
+│   └── error-tracking.schema.ts   # Diagnostic Sanctorum / radar chart
+├── penalties/schemas/
+│   └── penalty.schema.ts          # Quota, cooldown, lock state
+├── recall/schemas/
+│   ├── recall.schema.ts           # Spaced Repetition (SM-2)
+│   └── recall-test.schema.ts      # Bài kiểm tra mở lại lock
+├── history/schemas/
+│   ├── learning-history.schema.ts # Activity log
+│   └── bookmark.schema.ts         # Bài đã lưu / Bookmarked Lore
+├── notifications/schemas/
+│   └── notification.schema.ts     # In-app + push notification
+├── admin/schemas/
+│   └── admin-config.schema.ts     # Cấu hình admin (AI/penalty rules)
+└── survey/schemas/
+    └── survey-response.schema.ts  # Câu trả lời onboarding survey
 ```
 
-## Compile and run the project
+## Mapping với schema diagram (SwaggerHub)
 
-```bash
-# development
-$ yarn run start
+| Schema trong diagram | File tương ứng                                    |
+| -------------------- | ------------------------------------------------- |
+| USER                 | `users/schemas/user.schema.ts`                    |
+| USER_RANKING         | `users/schemas/user-ranking.schema.ts`            |
+| QUESTIONS            | `exercises/schemas/question.schema.ts`            |
+| ROADMAPS             | `learning-path/schemas/roadmap.schema.ts`         |
+| ROADMAPNODES         | `learning-path/schemas/roadmap-node.schema.ts`    |
+| USER_PROGRESS        | `learning-path/schemas/user-progress.schema.ts`   |
+| BATTLES              | `battles/schemas/battle.schema.ts`                |
+| CODE_ANALYSIS        | `battles/schemas/code-analysis.schema.ts`         |
+| AIChatMessage        | `ai-mentor/schemas/ai-chat-message.schema.ts`     |
+| ERROR_TRACKING       | `error-tracking/schemas/error-tracking.schema.ts` |
+| PENALTIES            | `penalties/schemas/penalty.schema.ts`             |
+| RECALL_SYSTEM        | `recall/schemas/recall.schema.ts`                 |
 
-# watch mode
-$ yarn run start:dev
+Các schema còn lại (Bookmark, Notification, SurveyResponse, RefreshToken, Otp,
+LoginAttempt, AiChatSession, RecallTest, Exercise, Submission, BattleSubmission,
+AdminConfig, LearningHistory) là bổ sung suy ra từ user-flow + UI để hỗ trợ đầy
+đủ tính năng (authen flow, OTP, history page, notification escalation, v.v.).
 
-# production mode
-$ yarn run start:prod
+## Cách đăng ký vào module
+
+Mỗi module NestJS cần import schema qua `MongooseModule.forFeature(...)`.
+Ví dụ với `users` module:
+
+```typescript
+// src/users/users.module.ts
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { User, UserSchema } from './schemas/user.schema';
+import {
+  LoginAttempt,
+  LoginAttemptSchema,
+} from './schemas/login-attempt.schema';
+import { UserRanking, UserRankingSchema } from './schemas/user-ranking.schema';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: LoginAttempt.name, schema: LoginAttemptSchema },
+      { name: UserRanking.name, schema: UserRankingSchema },
+    ]),
+  ],
+  // controllers, providers, exports ...
+})
+export class UsersModule {}
 ```
 
-## Run tests
+Tương tự cho các module còn lại.
+
+## Convention
+
+- `@Schema({ timestamps: true })` → tự sinh `createdAt`, `updatedAt`.
+- `@Schema({ timestamps: { createdAt: true, updatedAt: false } })` cho
+  collection append-only (log, message, history).
+- `@Schema({ _id: false })` cho subdocument nhúng (không cần `_id` riêng).
+- Tất cả relation đều dùng `Types.ObjectId` + `ref: 'ModelName'`.
+- TTL index dùng cho OTP, refresh token, login attempt → Mongo tự xoá.
+- Compound index đặt cuối file, ưu tiên các query pattern thường gặp
+  (`{ userId: 1, createdAt: -1 }` cho list-by-user-by-time).
+
+## Mapping nghiệp vụ → schema
+
+- **Penalty logic (sai >=5/>=10 lần)** → `penalties` + `recall-test` reset quota.
+- **Streak break escalation (1/3/7 ngày)** → `notifications.escalationLevel`.
+- **Skip lesson** → `UserProgress.status = SKIPPED`.
+- **Bài bị khoá tạm thời** → `UserProgress.status = TEMP_LOCKED` + `lockedUntil`.
+- **Spaced Repetition** → `recall.schema.ts` (SM-2: interval/easeFactor/repetitions).
+- **Battle matching** → `Battle.matchingEloRange` + `UserRanking.field`.
+- **AI Mentor "chỉ gợi ý, không cho code"** → `AiChatMessage.hintType` + `hintLevel`.
+
+## Cài thư viện
 
 ```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+yarn install @nestjs/mongoose mongoose
 ```
 
-## Deployment
+`package.json` cần đảm bảo:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+```json
+{
+  "dependencies": {
+    "@nestjs/mongoose": "^10.0.0",
+    "mongoose": "^8.0.0"
+  }
+}
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).

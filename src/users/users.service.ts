@@ -3,7 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/users.schema';
 import { CreateUserDto } from './dto/create-user.dto';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
+import { UserRole } from '../common/enums';
 
 @Injectable()
 export class UsersService {
@@ -19,11 +20,10 @@ export class UsersService {
 
     return await this.userModel.create({
       email: createUserDto.email,
-      name: createUserDto.name,
+      username: createUserDto.name,
       password: hashedPassword,
-      role: 'USER',
-      level: 'Beginner',
-      is_first_login: true,
+      role: UserRole.USER,
+      isFirstLogin: true,
     });
   }
 
@@ -31,6 +31,7 @@ export class UsersService {
     return this.userModel.find().exec();
   }
   async findOneByEmail(email: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ email }).exec();
+    // password has `select: false` in the schema — must opt in for login check
+    return this.userModel.findOne({ email }).select('+password').exec();
   }
 }
