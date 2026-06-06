@@ -4,23 +4,20 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { LearningPathController } from './learning-path.controller';
 import { LearningPathService } from './learning-path.service';
 
-import {
-  LearningPath,
-  LearningPathSchema,
-} from './schemas/learning-path.schema';
-import {
-  LearningNode,
-  LearningNodeSchema,
-} from './schemas/learning-node.schema';
+import { Roadmap, RoadmapSchema } from './schemas/roadmap.schema';
+import { RoadmapNode, RoadmapNodeSchema } from './schemas/roadmap-node.schema';
 
-import { Progress, ProgressSchema } from './schemas/progress.schema';
+import {
+  UserProgress,
+  UserProgressSchema,
+} from './schemas/user-progress.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: LearningPath.name, schema: LearningPathSchema },
-      { name: LearningNode.name, schema: LearningNodeSchema },
-      { name: Progress.name, schema: ProgressSchema },
+      { name: Roadmap.name, schema: RoadmapSchema },
+      { name: RoadmapNode.name, schema: RoadmapNodeSchema },
+      { name: UserProgress.name, schema: UserProgressSchema },
     ]),
   ],
   controllers: [LearningPathController],

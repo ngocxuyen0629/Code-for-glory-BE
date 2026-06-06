@@ -1,8 +1,8 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsNumber, Min } from 'class-validator';
-import { ProgressStatus } from '../enums/progress-status.enum';
+import { NodeStatus } from '../../common/enums';
 
 export class UpdateProgressDto {
-  @IsNotEmpty() @IsEnum(ProgressStatus) status!: ProgressStatus;
+  @IsNotEmpty() @IsEnum(NodeStatus) status!: NodeStatus;
 
   @IsOptional() @IsNumber() @Min(0) quizScore?: number;
 }

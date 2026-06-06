@@ -1,98 +1,96 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-import { BattleMode } from '../enums/battle-mode.enum';
-import { BattleStatus } from '../enums/battle-status.enum';
-import { Field } from '../enums/field.enum';
-// import { Type } from "@nestjs/common";
+import { HydratedDocument, Types } from 'mongoose';
+import {
+  BattleMode,
+  BattleResult,
+  BattleStatus,
+  CareerField,
+} from '../../common/enums';
+
+export type BattleDocument = HydratedDocument<Battle>;
 
 @Schema({ _id: false })
 export class BattlePlayer {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId!: Types.ObjectId;
 
-  @Prop({ required: true })
-  username!: string;
+  @Prop({ type: Number, default: 1000 })
+  ratingBefore!: number;
 
-  @Prop()
-  avatar?: string;
+  @Prop({ type: Number })
+  ratingAfter?: number; // computed when battle ends
 
-  @Prop({ default: 0 })
-  currentScore!: number;
+  @Prop({ type: Number, default: 0 })
+  score!: number; // points earned in this battle
 
-  @Prop({ default: false })
-  hasSubmitted!: boolean;
+  @Prop({ type: Number, default: 0 })
+  passedTestCount!: number;
 
-  @Prop()
-  joinedAt!: Date;
+  @Prop({ type: Number })
+  finishTimeSeconds?: number;
+
+  @Prop({ type: Number, default: 0 })
+  submissionCount!: number;
+
+  @Prop({ type: String, enum: BattleResult })
+  result?: BattleResult;
 }
 
-@Schema({ _id: false })
-export class BattleQuesion {
-  @Prop({ type: Types.ObjectId, ref: 'Question', required: true })
-  questionId!: Types.ObjectId;
-
-  @Prop({ required: true })
-  title!: string;
-
-  @Prop({ required: true })
-  content!: string;
-
-  @Prop({ required: true })
-  difficulty!: string;
-
-  @Prop({ type: Array, default: [] })
-  testCases!: any[];
-
-  @Prop()
-  correctAnswer?: string;
-}
-
+/**
+ * BATTLES — 1v1 coding match.
+ *
+ * Matching criteria (from survey):
+ *   - 88.2% — cùng Rank
+ *   - 76.5% — cùng lĩnh vực (FE vs FE)
+ *
+ * Modes:
+ *   - PERFORMANCE: tổng hợp 2-3 bài, thiên về thuật toán
+ *   - SPEED: 1 bài, tốc độ tuyệt đối
+ */
 @Schema({ timestamps: true })
-export class Battle extends Document {
+export class Battle {
   @Prop({ type: String, enum: BattleMode, required: true })
   mode!: BattleMode;
 
-  @Prop({ type: String, enum: Field, required: true })
-  field!: Field;
+  @Prop({ type: String, enum: CareerField, required: true })
+  field!: CareerField;
 
-  @Prop({
-    type: String,
-    enum: BattleStatus,
-    default: BattleStatus.WAITING,
-  })
+  @Prop({ type: String, enum: BattleStatus, default: BattleStatus.WAITING })
   status!: BattleStatus;
 
   @Prop({ type: [BattlePlayer], default: [] })
   players!: BattlePlayer[];
 
-  @Prop({ type: [BattleQuesion], default: [] })
-  questions!: BattleQuesion[];
+  @Prop({ type: [Types.ObjectId], ref: 'Question', default: [] })
+  questionIds!: Types.ObjectId[];
 
-  @Prop({ required: true })
-  timeLimit!: number;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  winnerId?: Types.ObjectId;
 
-  @Prop()
+  @Prop({ type: Boolean, default: false })
+  isDraw!: boolean;
+
+  @Prop({ type: Date })
   startTime?: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   endTime?: Date;
 
-  @Prop()
-  expectedEndTime?: Date;
+  /** Max duration (giây) trước khi tự huỷ */
+  @Prop({ type: Number, default: 1800 })
+  timeLimitSeconds!: number;
 
-  @Prop({ type: Object })
-  result?: {
-    winnerId?: Types.ObjectId;
-    isDraw?: boolean;
-    finalScores: { userId: string; score: number }[];
-  };
+  /** Min/Max ELO gap for matching */
+  @Prop({ type: Number, default: 200 })
+  matchingEloRange!: number;
 
-  @Prop({ type: Types.ObjectId, ref: 'CodeAnalysis' })
-  codeAnalysisId?: Types.ObjectId;
+  /** Liên kết tới Milestone Gate nếu battle này để mở khoá milestone */
+  @Prop({ type: Types.ObjectId, ref: 'RoadmapNode' })
+  gatedNodeId?: Types.ObjectId;
 }
-export type BattleDocument = Battle & Document;
 
 export const BattleSchema = SchemaFactory.createForClass(Battle);
 
 BattleSchema.index({ status: 1, mode: 1, field: 1 });
-BattleSchema.index({ 'players.userId': 1 });
+BattleSchema.index({ 'players.userId': 1, createdAt: -1 });
+BattleSchema.index({ winnerId: 1 });

@@ -1,10 +1,10 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { Field } from '../enums/field.enum';
+import { CareerField } from '../../common/enums';
 
 export class GetLeaderboardDto {
-  @IsEnum(Field)
-  field!: Field;
+  @IsEnum(CareerField)
+  field!: CareerField;
 
   @IsOptional()
   @Type(() => Number)
