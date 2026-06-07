@@ -13,9 +13,9 @@ import { Types } from 'mongoose';
 import {
   AuthenticatedUser,
   CurrentUser,
-} from '../common/current-user.decorator';
-import { JwtAuthGuard } from '../common/jwt-auth.guard';
-import { Public } from '../common/public.decorator';
+} from '../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../common/guard/jwt-auth.guard';
+import { Public } from '../common/decorators/public.decorator';
 import {
   ForgotPasswordDto,
   LoginDto,
