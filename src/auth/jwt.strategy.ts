@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Types } from 'mongoose';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { AuthenticatedUser } from '../common/current-user.decorator';
+import { AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from './service/auth-core.service';
 
 @Injectable()

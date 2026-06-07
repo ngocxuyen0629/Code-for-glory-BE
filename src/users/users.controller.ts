@@ -12,10 +12,10 @@ import { Types } from 'mongoose';
 import {
   CurrentUser,
   AuthenticatedUser,
-} from '../common/current-user.decorator';
-import { Public } from '../common/public.decorator';
+} from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { paginate } from '../common/dto/pagination.dto';
-import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { JwtAuthGuard } from '../common/guard/jwt-auth.guard';
 import { ParseObjectIdPipe } from '../common/object-id.pipe';
 import { LeaderboardQueryDto } from './dto/leaderboard-query.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
